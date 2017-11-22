@@ -1,0 +1,344 @@
+1.	
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace ShuffleCards
+{
+    public abstract class CardGame
+    {
+        protected const int sizeOfHandToDeal = 26;
+
+        // Auto-Implemented Properties
+        public Dictionary<string, int> NewCardDeck { get; protected set; }
+        public Dictionary<string, int> ShuffledDeck { get; protected set; }
+        public Dictionary<string, int> Player1Deck { get; protected set; }
+        public Dictionary<string, int> Player2Deck { get; protected set; }
+        public Dictionary<string, int> CardsOnTheTable { get; protected set; }
+
+        protected string Player1CardKey { get; set; }
+        protected int Player1CardValue { get; set; }
+        protected string Player2CardKey { get; set; }
+        protected int Player2CardValue { get; set; }
+
+        protected int Player1DeckWeight { get; set; }
+        protected int Player2DeckWeight { get; set; }
+
+        protected int Player1TricksWon { get; set; }
+        protected int Player2TricksWon { get; set; }
+        protected int TotalTricksWon { get; set; }
+
+        protected string StatusMessage { get; set; }
+        protected int OutcomeCode { get; set; }
+
+        protected Dictionary<string, int> CreateNewDeck()
+        {
+            Dictionary<string, int> tempNewDeck = new Dictionary<string, int>()
+            {
+                {"2 ♣", 2}, {"3 ♣", 3}, {"4 ♣", 4}, {"5 ♣", 5},
+                {"6 ♣", 6}, {"7 ♣", 7}, {"8 ♣", 8}, {"9 ♣", 9},
+                {"10 ♣", 10}, {"J ♣", 11}, {"Q ♣", 12}, {"K ♣", 13}, {"A ♣", 14},
+                {"2 ♦", 2}, {"3 ♦", 3}, {"4 ♦", 4}, {"5 ♦", 5},
+                {"6 ♦", 6}, {"7 ♦", 7}, {"8 ♦", 8}, {"9 ♦", 9},
+                {"10 ♦", 10}, {"J ♦", 11}, {"Q ♦", 12}, {"K ♦", 13}, {"A ♦", 14},
+                {"2 ♥", 2}, {"3 ♥", 3}, {"4 ♥", 4}, {"5 ♥", 5},
+                {"6 ♥", 6}, {"7 ♥", 7}, {"8 ♥", 8}, {"9 ♥", 9},
+                {"10 ♥", 10}, {"J ♥", 11}, {"Q ♥", 12}, {"K ♥", 13}, {"A ♥", 14},
+                {"2 ♠", 2}, {"3 ♠", 3}, {"4 ♠", 4}, {"5 ♠", 5},
+                {"6 ♠", 6}, {"7 ♠", 7}, {"8 ♠", 8}, {"9 ♠", 9},
+                {"10 ♠", 10}, {"J ♠", 11}, {"Q ♠", 12}, {"K ♠", 13}, {"A ♠", 14}
+            };
+            return tempNewDeck;
+        }
+
+        
+        protected Dictionary<string, int> ShuffleCards(Dictionary<string, int> cardsToShuffle)
+        {
+            Dictionary<string, int> ShuffledCards = new Dictionary<string, int>(cardsToShuffle);
+            Random RandomNumber = new Random();
+            ShuffledCards = ShuffledCards.Select(cards => cards)
+                .OrderBy(cards => RandomNumber.Next())
+                .ToDictionary(item => item.Key, item => item.Value);
+            return ShuffledCards;
+        }
+        protected void DealCards(Dictionary<string, int> cardsToDeal, int sizeOfHand)
+        {
+            Dictionary<string, int> CardsToDeal = new Dictionary<string, int>(cardsToDeal);
+            // Use Reverse() so last card delt is on the top of the player deck, 'face down'
+            CardsToDeal = CardsToDeal.Take(sizeOfHand * 2)
+                .ToDictionary(item => item.Key, item => item.Value);
+            Player1Deck = (CardsToDeal.Select(cards => cards)
+                .Where((cards, index) => index % 2 == 0).Reverse())
+                .ToDictionary(item => item.Key, item => item.Value);
+            Player2Deck = (CardsToDeal.Select(cards => cards)
+                .Where((cards, index) => index % 2 != 0).Reverse())
+                .ToDictionary(item => item.Key, item => item.Value);
+        }
+        public string DisplayDeck(Dictionary<string, int> deckToDisplay)
+        {
+            try
+            {
+                Dictionary<string, int> tempdDeckToDisplay = new Dictionary<string, int>(deckToDisplay);
+
+                string tempDeckDisplay = "(" + tempdDeckToDisplay.Count().ToString() + ") ";
+                int counter = 1;
+                foreach (KeyValuePair<string, int> cards in tempdDeckToDisplay)
+                {
+                    tempDeckDisplay += cards.Key + ", ";
+                    counter++;
+                }
+                char[] trimmer = { ',', ' ' };
+                tempDeckDisplay = tempDeckDisplay.TrimEnd(trimmer);
+                return tempDeckDisplay;
+            }
+            catch
+            {
+                return "(0)";
+            }
+        }
+        public virtual string DisplayResults()
+        {
+            string results = String.Format("Game Status: {0}", StatusMessage);
+            return StatusMessage;
+        }
+    }
+}
+
+
+2.	
+using  System.Collections.Generic;
+using System.Linq;
+using System.Text;
+namespace ShuffleCards
+{
+    /// <summary>
+    /// Inherit CardGames class. Make specific to the game of War
+    /// </summary>
+    public class WarCardGame : CardGame
+    {
+        private int totalWars;
+        private int singleWars;
+        private int doubleWars;
+        private int tripleWars;
+        private int quadWars;
+        private int otherWars;
+
+        //Number of cards to place face down for war
+        private const int cardsPlacedFaceDown = 2; 
+
+        // Initialize temporary card sets (Dictionaries) to hold current card sets
+        private Dictionary<string, int> tempPlayer1Deck = new Dictionary<string, int>();
+        private Dictionary<string, int> tempPlayer2Deck = new Dictionary<string, int>();
+        private Dictionary<string, int> tempCardsOnTheTable = new Dictionary<string, int>();
+        /// <summary>
+        /// Start a new game of WarCardGame
+        /// </summary>
+        public void StartGame()
+        {
+            NewCardDeck = CreateNewDeck();
+            ShuffledDeck = ShuffleCards(NewCardDeck);
+            DealCards(ShuffledDeck, sizeOfHandToDeal);
+            Player1DeckWeight = CalculateDeckWeight(Player1Deck);
+            Player2DeckWeight = CalculateDeckWeight(Player2Deck);
+        }
+
+        /// <summary>
+        /// Complete a full game automatically
+        /// </summary>
+        /// <returns></returns>
+        public void AutoGame()
+        {
+            while (Battle() == true)
+            {
+                // Keep calling battle
+            }
+        }
+
+        /// <summary>
+        /// Complete a single battle (trick) of the game
+        /// </summary>
+        /// <returns></returns>
+        public bool Battle()
+        {
+            // Fill temp decks with players cards
+            tempPlayer1Deck = Player1Deck.Select(cards => cards).ToDictionary(item => item.Key, item => item.Value);
+            tempPlayer2Deck = Player2Deck.Select(cards => cards).ToDictionary(item => item.Key, item => item.Value);
+
+            if (Player1Deck.Count() > 0) { Player1CardKey = Player1Deck.ElementAt(0).Key; }
+            if (Player2Deck.Count() > 0) { Player2CardKey = Player2Deck.ElementAt(0).Key; }
+
+            if (tempPlayer1Deck.Count() == 0)
+            {
+                StatusMessage = "Player 2 wins the game!";
+                OutcomeCode = 3;
+                return false;
+            }
+            else if (tempPlayer2Deck.Count() == 0)
+            {
+                StatusMessage = "Player 1 wins the game!";
+                OutcomeCode = 1;
+                return false;
+            }
+            else if (tempPlayer1Deck.Count() < (2 + cardsPlacedFaceDown) && tempPlayer1Deck.ElementAt(0).Value == tempPlayer2Deck.ElementAt(0).Value)
+            {
+                Player2TricksWon++;
+                TotalTricksWon++;
+                UpdateWarTotals(tempCardsOnTheTable.Count());
+                StatusMessage = "Player 2 wins the game! Game ended in a war.";
+                OutcomeCode = 4;
+                return false;
+            }
+            else if (tempPlayer2Deck.Count() < (2 + cardsPlacedFaceDown) && tempPlayer1Deck.ElementAt(0).Value == tempPlayer2Deck.ElementAt(0).Value)
+            {
+                Player1TricksWon++;
+                TotalTricksWon++;
+                UpdateWarTotals(tempCardsOnTheTable.Count());
+                StatusMessage = "Player 1 wins the game! Game ended in a war.";
+                OutcomeCode = 2;
+                return false;
+            }
+            else // Game hasn't ended so continue
+            {
+                if (CardsOnTheTable != null) // If last battle ended in war, collect cards left on table
+                {
+                    tempCardsOnTheTable = CardsOnTheTable.Select(cards => cards).ToDictionary(item => item.Key, item => item.Value);
+                }
+
+                Player1CardValue = tempPlayer1Deck.ElementAt(0).Value;
+                Player2CardValue = tempPlayer2Deck.ElementAt(0).Value;
+
+                //Begin battle, each player lays down face-up card
+                tempCardsOnTheTable.Add(tempPlayer1Deck.ElementAt(0).Key, tempPlayer1Deck.ElementAt(0).Value);
+                tempPlayer1Deck.Remove(tempPlayer1Deck.ElementAt(0).Key);
+                tempCardsOnTheTable.Add(tempPlayer2Deck.ElementAt(0).Key, tempPlayer2Deck.ElementAt(0).Value);
+                tempPlayer2Deck.Remove(tempPlayer2Deck.ElementAt(0).Key);
+
+                // Randomizes order of card on table before they are placed back onto the bottom of the winning player's deck
+                tempCardsOnTheTable = ShuffleCards(tempCardsOnTheTable);
+
+                if (Player1CardValue > Player2CardValue)
+                {
+                    StatusMessage = "Player 1 wins the battle.";
+                    // Add cards on table to winning player's hand
+                    var playerDeck1LINQ = tempPlayer1Deck.Select(cards => cards).Concat(tempCardsOnTheTable.Select(cards => cards));
+                    tempPlayer1Deck = playerDeck1LINQ.ToDictionary(item => item.Key, item => item.Value);
+                    Player1TricksWon++;
+                    TotalTricksWon++;
+                    UpdateWarTotals(tempCardsOnTheTable.Count());
+                    tempCardsOnTheTable.Clear(); // There is a winner so clear the table of cards
+                }
+                else if (Player1CardValue < Player2CardValue)
+                {
+                    StatusMessage = "Player 2 wins the battle.";
+                    // Add cards on table to winning player's hand
+                    var playerDeck2LINQ = tempPlayer2Deck.Select(cards => cards).Concat(tempCardsOnTheTable.Select(cards => cards));
+                    tempPlayer2Deck = playerDeck2LINQ.ToDictionary(item => item.Key, item => item.Value);
+                    Player2TricksWon++;
+                    TotalTricksWon++;
+                    UpdateWarTotals(tempCardsOnTheTable.Count());
+                    tempCardsOnTheTable.Clear();
+                }
+                else if (Player1CardValue == Player2CardValue) // Players cards are of equal value - war
+                {
+                    StatusMessage = "It's a tie. Time for war.";
+                    // Lay card(s) face-down on table for war
+                    for (int counter = 0; counter < cardsPlacedFaceDown; counter++)
+                    {
+                        tempCardsOnTheTable.Add(tempPlayer1Deck.ElementAt(0).Key, tempPlayer1Deck.ElementAt(0).Value);
+                        tempPlayer1Deck.Remove(tempPlayer1Deck.ElementAt(0).Key);
+                        tempCardsOnTheTable.Add(tempPlayer2Deck.ElementAt(0).Key, tempPlayer2Deck.ElementAt(0).Value);
+                        tempPlayer2Deck.Remove(tempPlayer2Deck.ElementAt(0).Key);
+                    }
+                }
+                // Battle over, reassign cards in correct locations
+                Player1Deck = tempPlayer1Deck.Select(cards => cards).ToDictionary(item => item.Key, item => item.Value);
+                Player2Deck = tempPlayer2Deck.Select(cards => cards).ToDictionary(item => item.Key, item => item.Value);
+                CardsOnTheTable = tempCardsOnTheTable.Select(cards => cards).ToDictionary(item => item.Key, item => item.Value);
+                return true; //Game is not over
+            }
+        }
+
+        /// <summary>
+        /// Update count of war fields
+        /// </summary>
+        /// <param name="cardsOnTheTable">Number of cards on table</param>
+        private void UpdateWarTotals(int cardsOnTheTable)
+        {
+            // Formula: first 2 cards + (cards face down * 2 players) + (2 * war level)
+            // 1 card: 6, 10, 14, or 18, 3 cards: 10, 18, 26, or 34
+            if (cardsOnTheTable == (2 + (cardsPlacedFaceDown * 2) + (2 * 1))) { singleWars++; }
+            else if (cardsOnTheTable == (2 + (cardsPlacedFaceDown * 4) + (2 * 2))) { doubleWars++; }
+            else if (cardsOnTheTable == (2 + (cardsPlacedFaceDown * 6) + (2 * 3))) { tripleWars++; }
+            else if (cardsOnTheTable == (2 + (cardsPlacedFaceDown * 8) + (2 * 4))) { quadWars++; }
+            else if (cardsOnTheTable > (2 + (cardsPlacedFaceDown * 8) + (2 * 4))) { otherWars++; }
+
+            if (cardsOnTheTable >= (2 + (cardsPlacedFaceDown * 2) + (2 * 1))) { totalWars++; }
+        }
+
+        /// <summary>
+        /// Format battle and game results as string for display on form
+        /// </summary>
+        /// <returns>Battle and game results</returns>
+        public override string DisplayResults()
+        {
+            StringBuilder str = new StringBuilder()
+            .Append("Player 1 Deck Weight: " + Player1DeckWeight + "\n")
+            .Append("Player 2 Deck Weight: " + Player2DeckWeight + "\n\n")
+            .Append("Player 1 Card: " + Player1CardKey + "\n")
+            .Append("Player 2 Card: " + Player2CardKey + "\n")
+            .Append("Results: " + StatusMessage + "\n\n")
+            .Append("Battles: " + TotalTricksWon + "\n")
+            .Append("Player 1 Wins: " + Player1TricksWon + "\n")
+            .Append("Player 2 Wins: " + Player2TricksWon + "\n\n")
+            .Append("Total Wars: " + totalWars + "\n")
+            .Append("Single Wars: " + singleWars + "\n")
+            .Append("Double Wars: " + doubleWars + "\n")
+            .Append("Triple Wars: " + tripleWars + "\n")
+            .Append("Quad Wars: " + quadWars + "\n")
+            .Append("Longer Wars: " + otherWars);
+            string results = str.ToString();
+            return results;
+        }
+
+        /// <summary>
+        /// Format final game results as tab-delimited string 
+        /// Used to export data to clipboard for analysis in Excel
+        /// </summary>
+        /// <returns>Game results</returns>
+        public string DataToClipboard()
+        {
+            StringBuilder str = new StringBuilder()
+            .Append(OutcomeCode + "\t")
+            .Append(TotalTricksWon + "\t")
+            .Append(Player1TricksWon + "\t")
+            .Append(Player2TricksWon + "\t")
+            .Append(totalWars + "\t")
+            .Append(singleWars + "\t")
+            .Append(doubleWars + "\t")
+            .Append(tripleWars + "\t")
+            .Append(quadWars + "\t")
+            .Append(otherWars + "\t")
+            .Append(Player1DeckWeight + "\t")
+            .Append(Player2DeckWeight);
+            string results = str.ToString();
+            return results;
+        }
+
+        /// <summary>
+        /// Calculate weight of a player's deck according to article: 
+        /// http://www.scq.ubc.ca/predictability-in-the-game-of-war/
+        /// </summary>
+        /// <param name="deckToWeigh"></param>
+        /// <returns>Deck weight (between -84 to 84)</returns>
+        public int CalculateDeckWeight(Dictionary<string, int> deckToWeigh)
+        {
+            int theDecksWeight = 0;
+            foreach (KeyValuePair<string, int> kvp in deckToWeigh)
+            {
+                theDecksWeight += kvp.Value - 8;
+            }
+            return theDecksWeight;
+        }
+    }
+}
+
